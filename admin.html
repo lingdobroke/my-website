@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>進階管理後台 - 寧學會了嗎</title>
+    <style>
+        body { font-family: sans-serif; background: #f0f2f5; padding: 20px; line-height: 1.6; }
+        .box { background: #fff; padding: 25px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 900px; margin: 0 auto 30px; }
+        h2 { margin-top: 0; color: #333; border-left: 5px solid #4361ee; padding-left: 10px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        
+        /* 編輯器工具列 */
+        .toolbar { background: #f8fafc; border: 1px solid #ddd; border-bottom: none; padding: 10px; border-radius: 8px 8px 0 0; display: flex; flex-wrap: wrap; gap: 5px; }
+        .toolbar button, .toolbar input[type="color"] { padding: 5px 10px; cursor: pointer; border: 1px solid #ccc; background: #fff; border-radius: 4px; font-size: 13px; }
+        .toolbar button:hover { background: #e2e8f0; }
+        #editor { border: 1px solid #ddd; min-height: 300px; padding: 15px; border-radius: 0 0 8px 8px; outline: none; background: #fff; overflow-y: auto; }
+        
+        button.main-btn { background: #4361ee; color: white; border: none; padding: 15px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 20px; }
+        .post-item { background: #fafafa; padding: 12px; border-radius: 8px; margin-top: 10px; border: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .del-btn { background: #ff4757; color: white; border: none; padding: 5px 15px; border-radius: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <h2>🎨 網站基礎設定</h2>
+    <div class="grid">
+        <div><label>網站名稱</label><input type="text" id="sn"></div>
+        <div><label>Logo 網址</label><input type="text" id="sl"></div>
+    </div>
+    <div class="grid">
+        <div><label>FB 連結</label><input type="text" id="f_fb"></div>
+        <div><label>IG 連結</label><input type="text" id="f_ig"></div>
+    </div>
+    <div class="grid">
+        <div><label>YT 連結</label><input type="text" id="f_yt"></div>
+        <div><label>Line 連結</label><input type="text" id="f_line"></div>
+    </div>
+    <button class="main-btn" onclick="saveSettings()">儲存設定</button>
+</div>
+
+<div class="box">
+    <h2>🚀 發布新文章/影片</h2>
+    <div class="grid">
+        <div><label>類型</label><select id="p-type" onchange="toggleType()">
+            <option value="image">圖文</option>
+            <option value="video">影片</option>
+        </select></div>
+        <div><label>分類標籤</label><input type="text" id="p-tag" placeholder="例如：教學"></div>
+    </div>
+    <div class="grid">
+        <div style="grid-column: span 2;"><label>標題</label><input type="text" id="p-title"></div>
+    </div>
+    <div id="image-fields" class="grid">
+        <div><label>封面網址</label><input type="text" id="p-img"></div>
+        <div><label>輪播展示</label><select id="p-hero"><option value="0">否</option><option value="1">是</option></select></div>
+    </div>
+    <div id="video-fields" style="display:none; margin-bottom:15px;">
+        <label>影片網址 (YouTube 或 MP4)</label>
+        <input type="text" id="p-video">
+    </div>
+
+    <label>內容編輯</label>
+    <div class="toolbar">
+        <button onclick="exec('bold')"><b>B (加粗)</b></button>
+        <button onclick="exec('fontSize', '5')">大文字</button>
+        <button onclick="exec('fontSize', '3')">小文字</button>
+        <button onclick="exec('formatBlock', 'h2')">標題</button>
+        <button onclick="exec('hiliteColor', 'yellow')">🟨 螢光</button>
+        <button onclick="exec('hiliteColor', '#00ff00')">🟩 螢光</button>
+        <label style="font-size:12px; margin-left:10px;">文字顏色:</label>
+        <input type="color" onchange="exec('foreColor', this.value)">
+        <button onclick="addLink()">🔗 加入連結</button>
+        <button onclick="exec('unlink')">移除連結</button>
+        <button onclick="exec('insertUnorderedList')">• 列表</button>
+        <button onclick="exec('removeFormat')">🧹 清除格式</button>
+    </div>
+    <div id="editor" contenteditable="true">在這裡輸入內容...</div>
+
+    <button class="main-btn" style="background:#10b981;" onclick="addPost()">立即發布內容</button>
+</div>
+
+<div class="box">
+    <h2>📋 文章管理清單</h2>
+    <div id="admin-post-list"></div>
+</div>
+
+<script>
+    // 編輯器指令
+    function exec(cmd, val = null) { document.execCommand(cmd, false, val); }
+    function addLink() {
+        const url = prompt("請輸入網址:", "https://");
+        if(url) exec('createLink', url);
+    }
+
+    function toggleType() {
+        const t = document.getElementById('p-type').value;
+        document.getElementById('image-fields').style.display = t === 'image' ? 'grid' : 'none';
+        document.getElementById('video-fields').style.display = t === 'video' ? 'block' : 'none';
+    }
+
+    function saveSettings() {
+        ['sn','sl','f_fb','f_ig','f_yt','f_line'].forEach(k => localStorage.setItem(k, document.getElementById(k).value));
+        alert('設定儲存成功！');
+    }
+
+    function addPost() {
+        const posts = JSON.parse(localStorage.getItem('ps') || '[]');
+        const content = document.getElementById('editor').innerHTML;
+        posts.unshift({
+            type: document.getElementById('p-type').value,
+            t: document.getElementById('p-title').value,
+            tag: document.getElementById('p-tag').value || '一般',
+            c: content,
+            img: document.getElementById('p-img').value || 'https://via.placeholder.com/400x250',
+            isHero: document.getElementById('p-hero').value === "1",
+            video: document.getElementById('p-video').value
+        });
+        localStorage.setItem('ps', JSON.stringify(posts));
+        alert('發布成功！');
+        location.reload();
+    }
+
+    function renderList() {
+        const posts = JSON.parse(localStorage.getItem('ps') || '[]');
+        document.getElementById('admin-post-list').innerHTML = posts.map((p, i) => `
+            <div class="post-item">
+                <span><b>[${p.tag}]</b> ${p.t}</span>
+                <button class="del-btn" onclick="delPost(${i})">刪除</button>
+            </div>
+        `).join('');
+    }
+
+    function delPost(i) {
+        const posts = JSON.parse(localStorage.getItem('ps') || '[]');
+        posts.splice(i, 1);
+        localStorage.setItem('ps', JSON.stringify(posts));
+        renderList();
+    }
+
+    window.onload = () => {
+        ['sn','sl','f_fb','f_ig','f_yt','f_line'].forEach(k => {
+            if(localStorage.getItem(k)) document.getElementById(k).value = localStorage.getItem(k);
+        });
+        renderList();
+    };
+</script>
+</body>
+</html>
